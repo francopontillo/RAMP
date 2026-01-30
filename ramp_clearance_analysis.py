@@ -266,7 +266,7 @@ def find_minimum_safe_arc_length():
 def create_clearance_visualization(arc_length):
     """Create detailed visualization of clearance analysis."""
 
-    fig, axes = plt.subplots(3, 2, figsize=(16, 14))
+    fig, axes = plt.subplots(4, 2, figsize=(16, 20))
 
     # Get profiles
     s_array, z_array = get_ramp_profile(arc_length)
@@ -407,41 +407,141 @@ def create_clearance_visualization(arc_length):
     ax6 = axes[2, 1]
     ax6.axis('off')
 
-    summary = f"""
-    CLEARANCE ANALYSIS SUMMARY
-    ══════════════════════════════════════════════
+    # 7. Bird's Eye View (Top-down view of the track)
+    ax7 = axes[3, 0]
 
-    ARC LENGTH: {arc_length:.1f}m
-    TOTAL RAMP LENGTH: {total_length:.1f}m
-    (5m flat + {arc_length:.1f}m ramp + 5m flat)
+    # Define ramp width (wider than car for safety margins)
+    ramp_width = CAR_WIDTH + 0.4  # 0.2m margin on each side
 
-    DOWNHILL (Street → Garage):
-      Minimum clearance: {down_result['min_clearance']*1000:.1f}mm
-      Critical point:    {down_result['min_clearance_type']}
-      Status:            {'✓ SAFE' if down_result['min_clearance'] >= MIN_CLEARANCE else '✗ FAIL'}
+    # Draw the track from above
+    # Street section (green)
+    street_rect = plt.Rectangle((0, -ramp_width/2), ENTRY_FLAT, ramp_width,
+                                  facecolor='#90EE90', edgecolor='green', linewidth=2, alpha=0.7)
+    ax7.add_patch(street_rect)
+    ax7.text(ENTRY_FLAT/2, 0, 'STREET\n(Level 0m)', ha='center', va='center',
+             fontsize=10, fontweight='bold', color='darkgreen')
 
-    UPHILL (Garage → Street):
-      Minimum clearance: {up_result['min_clearance']*1000:.1f}mm
-      Critical point:    {up_result['min_clearance_type']}
-      Status:            {'✓ SAFE' if up_result['min_clearance'] >= MIN_CLEARANCE else '✗ FAIL'}
+    # Ramp section (gradient from green to blue)
+    n_ramp_sections = 20
+    for i in range(n_ramp_sections):
+        x_start = ENTRY_FLAT + (arc_length / n_ramp_sections) * i
+        section_width = arc_length / n_ramp_sections
+        # Color gradient from green to blue
+        ratio = i / n_ramp_sections
+        color = (0.3 * (1-ratio), 0.6 * (1-ratio) + 0.4 * ratio, 0.3 * (1-ratio) + 0.8 * ratio)
+        rect = plt.Rectangle((x_start, -ramp_width/2), section_width, ramp_width,
+                              facecolor=color, edgecolor='none', alpha=0.7)
+        ax7.add_patch(rect)
 
-    CAR GEOMETRY:
-      Wheelbase:         {WHEELBASE*1000:.0f}mm
-      Front overhang:    {FRONT_OVERHANG*1000:.0f}mm
-      Rear overhang:     {REAR_OVERHANG*1000:.0f}mm
-      Ground clearance:  {GROUND_CLEARANCE*1000:.0f}mm
+    # Ramp outline
+    ramp_outline = plt.Rectangle((ENTRY_FLAT, -ramp_width/2), arc_length, ramp_width,
+                                   facecolor='none', edgecolor='#444444', linewidth=2)
+    ax7.add_patch(ramp_outline)
+    ax7.text(ENTRY_FLAT + arc_length/2, 0, f'RAMP\n({arc_length:.1f}m)\n↓ {VERTICAL_DROP}m drop',
+             ha='center', va='center', fontsize=10, fontweight='bold', color='white')
 
-    OVERALL STATUS: {'✓ BIDIRECTIONAL SAFE' if min(down_result['min_clearance'], up_result['min_clearance']) >= MIN_CLEARANCE else '✗ NOT SAFE FOR BOTH DIRECTIONS'}
-    """
+    # Garage section (blue)
+    garage_rect = plt.Rectangle((ENTRY_FLAT + arc_length, -ramp_width/2), EXIT_FLAT, ramp_width,
+                                  facecolor='#87CEEB', edgecolor='blue', linewidth=2, alpha=0.7)
+    ax7.add_patch(garage_rect)
+    ax7.text(ENTRY_FLAT + arc_length + EXIT_FLAT/2, 0, f'GARAGE\n(Level -{VERTICAL_DROP}m)',
+             ha='center', va='center', fontsize=10, fontweight='bold', color='darkblue')
+
+    # Draw car positions along the path (showing trajectory)
+    car_positions = [2.5, ENTRY_FLAT + arc_length * 0.25,
+                     ENTRY_FLAT + arc_length * 0.5,
+                     ENTRY_FLAT + arc_length * 0.75,
+                     ENTRY_FLAT + arc_length + 2.5]
+
+    for i, car_pos in enumerate(car_positions):
+        alpha = 0.3 if i != 2 else 0.8  # Highlight middle position
+        car_color = 'red' if i == 2 else '#FF6B6B'
+        # Car rectangle (from above)
+        car_rect = plt.Rectangle((car_pos - CAR_LENGTH/2, -CAR_WIDTH/2), CAR_LENGTH, CAR_WIDTH,
+                                   facecolor=car_color, edgecolor='darkred', linewidth=1.5, alpha=alpha)
+        ax7.add_patch(car_rect)
+        # Front indicator (triangle)
+        front_x = car_pos + CAR_LENGTH/2
+        ax7.plot([front_x, front_x - 0.3, front_x - 0.3],
+                 [0, 0.15, -0.15], color='darkred', linewidth=1, alpha=alpha)
+
+    # Draw direction arrow
+    ax7.annotate('', xy=(total_length - 1, ramp_width/2 + 0.3),
+                 xytext=(1, ramp_width/2 + 0.3),
+                 arrowprops=dict(arrowstyle='->', color='black', lw=2))
+    ax7.text(total_length/2, ramp_width/2 + 0.5, 'DOWNHILL DIRECTION',
+             ha='center', va='bottom', fontsize=9, fontweight='bold')
+
+    # Add dimension annotations
+    ax7.annotate('', xy=(0, -ramp_width/2 - 0.4),
+                 xytext=(ENTRY_FLAT, -ramp_width/2 - 0.4),
+                 arrowprops=dict(arrowstyle='<->', color='green', lw=1.5))
+    ax7.text(ENTRY_FLAT/2, -ramp_width/2 - 0.6, f'{ENTRY_FLAT}m', ha='center', fontsize=8, color='green')
+
+    ax7.annotate('', xy=(ENTRY_FLAT, -ramp_width/2 - 0.4),
+                 xytext=(ENTRY_FLAT + arc_length, -ramp_width/2 - 0.4),
+                 arrowprops=dict(arrowstyle='<->', color='#444444', lw=1.5))
+    ax7.text(ENTRY_FLAT + arc_length/2, -ramp_width/2 - 0.6, f'{arc_length:.1f}m', ha='center', fontsize=8)
+
+    ax7.annotate('', xy=(ENTRY_FLAT + arc_length, -ramp_width/2 - 0.4),
+                 xytext=(total_length, -ramp_width/2 - 0.4),
+                 arrowprops=dict(arrowstyle='<->', color='blue', lw=1.5))
+    ax7.text(ENTRY_FLAT + arc_length + EXIT_FLAT/2, -ramp_width/2 - 0.6, f'{EXIT_FLAT}m', ha='center', fontsize=8, color='blue')
+
+    ax7.set_xlim(-1, total_length + 1)
+    ax7.set_ylim(-ramp_width/2 - 1, ramp_width/2 + 1)
+    ax7.set_xlabel('Distance (m)')
+    ax7.set_ylabel('Width (m)')
+    ax7.set_title("BIRD'S EYE VIEW - Track from Street to Garage", fontsize=11, fontweight='bold')
+    ax7.set_aspect('equal')
+    ax7.grid(True, alpha=0.3)
+
+    # 8. Elevation profile along center line (side companion to bird's eye)
+    ax8 = axes[3, 1]
+    ax8.fill_between(s_array, z_array, -VERTICAL_DROP - 0.5, color='#d4a574', alpha=0.5)
+    ax8.plot(s_array, z_array, 'k-', linewidth=2)
+
+    # Mark the zones
+    ax8.axvspan(0, ENTRY_FLAT, alpha=0.3, color='green', label='Street')
+    ax8.axvspan(ENTRY_FLAT, ENTRY_FLAT + arc_length, alpha=0.2, color='gray', label='Ramp')
+    ax8.axvspan(ENTRY_FLAT + arc_length, total_length, alpha=0.3, color='blue', label='Garage')
+
+    # Add car silhouettes at same positions
+    for i, car_pos in enumerate(car_positions):
+        car_z = get_elevation_at(car_pos, s_array, z_array)
+        alpha = 0.4 if i != 2 else 1.0
+        ax8.plot([car_pos - CAR_LENGTH/2, car_pos + CAR_LENGTH/2],
+                 [car_z + GROUND_CLEARANCE, car_z + GROUND_CLEARANCE],
+                 'r-', linewidth=3, alpha=alpha)
+        ax8.plot(car_pos, car_z, 'ko', markersize=4, alpha=alpha)
+
+    ax8.set_xlabel('Distance (m)')
+    ax8.set_ylabel('Elevation (m)')
+    ax8.set_title('SIDE VIEW - Elevation Profile with Car Positions', fontsize=11, fontweight='bold')
+    ax8.legend(loc='upper right', fontsize=8)
+    ax8.grid(True, alpha=0.3)
+    ax8.set_xlim(-1, total_length + 1)
+
+    overall_safe = min(down_result['min_clearance'], up_result['min_clearance']) >= MIN_CLEARANCE
+    summary = f"""CLEARANCE ANALYSIS SUMMARY
+{'═'*40}
+ARC LENGTH: {arc_length:.1f}m | TOTAL: {total_length:.1f}m
+
+DOWNHILL: {down_result['min_clearance']*1000:.1f}mm {'✓' if down_result['min_clearance'] >= MIN_CLEARANCE else '✗'}
+UPHILL:   {up_result['min_clearance']*1000:.1f}mm {'✓' if up_result['min_clearance'] >= MIN_CLEARANCE else '✗'}
+
+CAR: WB={WHEELBASE*1000:.0f}mm GC={GROUND_CLEARANCE*1000:.0f}mm
+
+{'✓ BIDIRECTIONAL SAFE' if overall_safe else '✗ NOT SAFE'}"""
 
     ax6.text(0.05, 0.95, summary, transform=ax6.transAxes,
-             fontsize=11, fontfamily='monospace', verticalalignment='top',
+             fontsize=10, fontfamily='monospace', verticalalignment='top',
              bbox=dict(boxstyle='round', facecolor='lightyellow', alpha=0.9))
 
     plt.suptitle(f'GROUND CLEARANCE ANALYSIS - Porsche 997.1\n'
                  f'Arc Length: {arc_length:.1f}m | Vertical Drop: {VERTICAL_DROP}m',
                  fontsize=14, fontweight='bold')
-    plt.tight_layout()
+    plt.tight_layout(h_pad=2.0)
     plt.savefig('/workspaces/RAMP/clearance_analysis.png', dpi=150, bbox_inches='tight')
     print(f"\nClearance analysis saved: clearance_analysis.png")
 

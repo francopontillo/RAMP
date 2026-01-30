@@ -195,10 +195,15 @@ def create_blueprint(design):
     middle_h = result['middle_h']
     middle_drop = result['middle_drop']
 
-    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    # Car width for top view
+    CAR_WIDTH = 1.808
+    ramp_width = CAR_WIDTH + 0.5  # margin
+
+    fig = plt.figure(figsize=(16, 16))
+    gs = fig.add_gridspec(3, 2, height_ratios=[1.2, 1, 0.8], hspace=0.3, wspace=0.25)
 
     # 1. Side Elevation
-    ax1 = axes[0, 0]
+    ax1 = fig.add_subplot(gs[0, :])
     ax1.fill_between(s, z, z.min() - 0.5, color='#d4a574', alpha=0.7)
     ax1.plot(s, z, 'k-', linewidth=3)
     ax1.axhline(y=0, color='green', linewidth=3, label='Street Level')
@@ -217,7 +222,7 @@ def create_blueprint(design):
     ax1.set_aspect('equal')
 
     # 2. Slope profile
-    ax2 = axes[0, 1]
+    ax2 = fig.add_subplot(gs[1, 0])
     ds = s[1] - s[0]
     dz_ds = np.gradient(z, ds)
     slope_deg = np.degrees(np.arctan(-dz_ds))
@@ -232,7 +237,7 @@ def create_blueprint(design):
     ax2.set_ylim(-2, slope + 5)
 
     # 3. Clearance
-    ax3 = axes[1, 0]
+    ax3 = fig.add_subplot(gs[1, 1])
     margin = CAR_LENGTH / 2 + max(FRONT_OVERHANG, REAR_OVERHANG) + 0.1
     positions = np.linspace(margin, total - margin, 300)
     down_cl = [check_clearance(p, s, z, 'downhill') * 1000 for p in positions]
@@ -252,56 +257,119 @@ def create_blueprint(design):
     ax3.set_ylim(-20, 120)
 
     # 4. Specifications
-    ax4 = axes[1, 1]
+    ax4 = fig.add_subplot(gs[2, 0])
     ax4.axis('off')
 
     specs = f"""
-    ╔════════════════════════════════════════════════════════════╗
-    ║         MAXIMUM SLOPE RAMP - FINAL DESIGN                  ║
-    ╠════════════════════════════════════════════════════════════╣
-    ║                                                            ║
-    ║  MAXIMUM ACHIEVABLE SLOPE: {slope:.1f}°                          ║
-    ║                                                            ║
-    ║  GEOMETRY:                                                 ║
-    ║    Entry flat (street):    {ENTRY_FLAT:.1f}m                          ║
-    ║    Transition arc (entry): {trans_h:.2f}m  (R = {R:.1f}m)            ║
-    ║    Middle straight:        {middle_h:.2f}m  (at {slope:.1f}° constant)   ║
-    ║    Transition arc (exit):  {trans_h:.2f}m  (R = {R:.1f}m)            ║
-    ║    Exit flat (garage):     {EXIT_FLAT:.1f}m                          ║
-    ║    ─────────────────────────────────────                   ║
-    ║    TOTAL LENGTH:           {total:.1f}m                         ║
-    ║    ARC LENGTH:             {arc:.2f}m                        ║
-    ║                                                            ║
-    ║  VERTICAL:                                                 ║
-    ║    Entry transition drop:  {trans_drop:.3f}m                        ║
-    ║    Middle section drop:    {middle_drop:.3f}m                        ║
-    ║    Exit transition drop:   {trans_drop:.3f}m                        ║
-    ║    ─────────────────────────────────────                   ║
-    ║    TOTAL DROP:             {VERTICAL_DROP:.1f}m                          ║
-    ║                                                            ║
-    ║  CLEARANCES:                                               ║
-    ║    Downhill travel:        {design['down']*1000:.1f}mm                        ║
-    ║    Uphill travel:          {design['up']*1000:.1f}mm                        ║
-    ║    Minimum required:       {MIN_CLEARANCE*1000:.0f}mm                          ║
-    ║                                                            ║
-    ║  CAR: Porsche 997.1 Turbo (2008)                           ║
-    ║    Ground clearance: {GROUND_CLEARANCE*1000:.0f}mm                             ║
-    ║    Wheelbase: {WHEELBASE}m                                    ║
-    ║    Rear overhang: {REAR_OVERHANG:.3f}m (critical constraint)        ║
-    ║                                                            ║
-    ╚════════════════════════════════════════════════════════════╝
+MAXIMUM SLOPE RAMP - {slope:.1f}°
+════════════════════════════════════════
 
-    NOTE: 24° is PHYSICALLY IMPOSSIBLE with these constraints.
-    The maximum achievable slope is {slope:.1f}°.
+GEOMETRY:
+  Transition radius:   {R:.1f}m
+  Transition length:   {trans_h:.1f}m each
+  Middle ({slope:.1f}° const): {middle_h:.1f}m
+  Arc length:          {arc:.1f}m
+  Total length:        {total:.1f}m
+
+CLEARANCES:
+  Downhill minimum:    {design['down']*1000:.1f}mm
+  Uphill minimum:      {design['up']*1000:.1f}mm
+  Required minimum:    {MIN_CLEARANCE*1000:.0f}mm
+
+CONSTRAINTS:
+  The {slope:.1f}° slope is the MAXIMUM achievable
+  with this car geometry ({REAR_OVERHANG*1000:.0f}mm rear overhang)
+  and {VERTICAL_DROP}m vertical drop.
+
+  Higher slopes require gentler transitions,
+  but gentler transitions need more vertical drop
+  than available ({VERTICAL_DROP}m).
     """
 
     ax4.text(0.02, 0.98, specs, transform=ax4.transAxes, fontsize=10,
              fontfamily='monospace', verticalalignment='top',
              bbox=dict(boxstyle='round', facecolor='#e8f5e9', alpha=0.95, edgecolor='green'))
 
+    # 5. TOP VIEW (Plan)
+    ax5 = fig.add_subplot(gs[2, 1])
+
+    # Street section (gray - 5 meters)
+    street_rect = plt.Rectangle((0, -ramp_width/2), ENTRY_FLAT, ramp_width,
+                                  facecolor='#808080', edgecolor='#404040', linewidth=2, alpha=0.8)
+    ax5.add_patch(street_rect)
+    ax5.text(ENTRY_FLAT/2, 0, f'STREET\n{ENTRY_FLAT:.0f}m', ha='center', va='center',
+             fontsize=9, fontweight='bold', color='white')
+
+    # Ramp section (gradient from gray to blue)
+    n_sections = 25
+    for i in range(n_sections):
+        x_start = ENTRY_FLAT + (arc / n_sections) * i
+        section_width = arc / n_sections
+        ratio = i / n_sections
+        gray_val = 0.5 * (1 - ratio)
+        blue_val = 0.5 + 0.5 * ratio
+        color = (gray_val, gray_val, blue_val)
+        rect = plt.Rectangle((x_start, -ramp_width/2), section_width, ramp_width,
+                              facecolor=color, edgecolor='none', alpha=0.8)
+        ax5.add_patch(rect)
+
+    # Ramp outline
+    ramp_outline = plt.Rectangle((ENTRY_FLAT, -ramp_width/2), arc, ramp_width,
+                                   facecolor='none', edgecolor='#404040', linewidth=2)
+    ax5.add_patch(ramp_outline)
+    ax5.text(ENTRY_FLAT + arc/2, 0, f'RAMP\n{arc:.1f}m',
+             ha='center', va='center', fontsize=9, fontweight='bold', color='white')
+
+    # Garage section (blue - 5 meters)
+    garage_rect = plt.Rectangle((ENTRY_FLAT + arc, -ramp_width/2), EXIT_FLAT, ramp_width,
+                                  facecolor='#4169E1', edgecolor='#1E3A8A', linewidth=2, alpha=0.8)
+    ax5.add_patch(garage_rect)
+    ax5.text(ENTRY_FLAT + arc + EXIT_FLAT/2, 0, f'GARAGE\n{EXIT_FLAT:.0f}m',
+             ha='center', va='center', fontsize=9, fontweight='bold', color='white')
+
+    # Draw car silhouettes
+    car_positions = [2.5, ENTRY_FLAT + arc * 0.33, ENTRY_FLAT + arc * 0.66, ENTRY_FLAT + arc + 2.5]
+    for i, car_pos in enumerate(car_positions):
+        alpha = 0.5
+        car_color = '#FF6666'
+        car_rect = plt.Rectangle((car_pos - CAR_LENGTH/2, -CAR_WIDTH/2), CAR_LENGTH, CAR_WIDTH,
+                                   facecolor=car_color, edgecolor='darkred', linewidth=1, alpha=alpha)
+        ax5.add_patch(car_rect)
+
+    # Direction arrow
+    ax5.annotate('', xy=(total - 0.5, ramp_width/2 + 0.3),
+                 xytext=(0.5, ramp_width/2 + 0.3),
+                 arrowprops=dict(arrowstyle='->', color='black', lw=1.5))
+    ax5.text(total/2, ramp_width/2 + 0.5, 'DOWNHILL', ha='center', fontsize=8, fontweight='bold')
+
+    # Dimension annotations
+    ax5.annotate('', xy=(0, -ramp_width/2 - 0.4), xytext=(ENTRY_FLAT, -ramp_width/2 - 0.4),
+                 arrowprops=dict(arrowstyle='<->', color='gray', lw=1))
+    ax5.text(ENTRY_FLAT/2, -ramp_width/2 - 0.6, f'{ENTRY_FLAT:.0f}m', ha='center', fontsize=7, color='gray')
+
+    ax5.annotate('', xy=(ENTRY_FLAT, -ramp_width/2 - 0.4), xytext=(ENTRY_FLAT + arc, -ramp_width/2 - 0.4),
+                 arrowprops=dict(arrowstyle='<->', color='#404040', lw=1))
+    ax5.text(ENTRY_FLAT + arc/2, -ramp_width/2 - 0.6, f'{arc:.1f}m', ha='center', fontsize=7)
+
+    ax5.annotate('', xy=(ENTRY_FLAT + arc, -ramp_width/2 - 0.4), xytext=(total, -ramp_width/2 - 0.4),
+                 arrowprops=dict(arrowstyle='<->', color='blue', lw=1))
+    ax5.text(ENTRY_FLAT + arc + EXIT_FLAT/2, -ramp_width/2 - 0.6, f'{EXIT_FLAT:.0f}m', ha='center', fontsize=7, color='blue')
+
+    ax5.set_xlim(-0.5, total + 0.5)
+    ax5.set_ylim(-ramp_width/2 - 1, ramp_width/2 + 0.8)
+    ax5.set_xlabel('Distance (m)', fontsize=9)
+    ax5.set_ylabel('Width (m)', fontsize=9)
+    ax5.set_title(f'TOP VIEW (Plan)', fontsize=10, fontweight='bold')
+    ax5.set_aspect('equal')
+    ax5.grid(True, alpha=0.3)
+
+    plt.suptitle(f'MAXIMUM SLOPE RAMP DESIGN - {slope:.1f}°\n'
+                 f'Arc: {arc:.1f}m | Total: {total:.1f}m | R: {R:.1f}m',
+                 fontsize=14, fontweight='bold', y=0.98)
+
     plt.tight_layout()
-    plt.savefig('/workspaces/RAMP/maximum_slope_final_design.png', dpi=200, bbox_inches='tight')
-    print(f"\nBlueprint saved: maximum_slope_final_design.png")
+    plt.savefig('/workspaces/RAMP/minimum_radial_3.5m_blueprint_24deg.png', dpi=200, bbox_inches='tight')
+    print(f"\nBlueprint saved: minimum_radial_3.5m_blueprint_24deg.png")
 
     # Also save measurements
     save_measurements(s, z, design)

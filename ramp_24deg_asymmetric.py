@@ -324,8 +324,12 @@ def create_blueprint(design):
     middle_drop = VERTICAL_DROP - entry_drop - exit_drop
     middle_horiz = middle_drop / np.tan(slope_rad)
 
-    fig = plt.figure(figsize=(18, 16))
-    gs = fig.add_gridspec(3, 2, height_ratios=[1.2, 1, 0.8], hspace=0.3, wspace=0.25)
+    # Car width for top view
+    CAR_WIDTH = 1.808
+    ramp_width = CAR_WIDTH + 0.5  # margin
+
+    fig = plt.figure(figsize=(18, 20))
+    gs = fig.add_gridspec(4, 2, height_ratios=[1.2, 1, 0.8, 0.8], hspace=0.3, wspace=0.25)
 
     # 1. Side Elevation
     ax1 = fig.add_subplot(gs[0, :])
@@ -491,6 +495,85 @@ def create_blueprint(design):
     ax5.text(0.02, 0.98, comparison, transform=ax5.transAxes,
              fontsize=9, fontfamily='monospace', verticalalignment='top',
              bbox=dict(boxstyle='round', facecolor='lightyellow', alpha=0.9))
+
+    # 6. TOP VIEW (Plan) - spanning both columns
+    ax6 = fig.add_subplot(gs[3, :])
+
+    # Street section (gray - 5 meters)
+    street_rect = plt.Rectangle((0, -ramp_width/2), ENTRY_FLAT, ramp_width,
+                                  facecolor='#808080', edgecolor='#404040', linewidth=2, alpha=0.8)
+    ax6.add_patch(street_rect)
+    ax6.text(ENTRY_FLAT/2, 0, f'STREET\n{ENTRY_FLAT:.0f}m\n(Level 0m)', ha='center', va='center',
+             fontsize=11, fontweight='bold', color='white')
+
+    # Ramp section (gradient from gray to blue)
+    n_sections = 30
+    for i in range(n_sections):
+        x_start = ENTRY_FLAT + (arc_length / n_sections) * i
+        section_width = arc_length / n_sections
+        # Color gradient from gray to blue
+        ratio = i / n_sections
+        gray_val = 0.5 * (1 - ratio)
+        blue_val = 0.5 + 0.5 * ratio
+        color = (gray_val, gray_val, blue_val)
+        rect = plt.Rectangle((x_start, -ramp_width/2), section_width, ramp_width,
+                              facecolor=color, edgecolor='none', alpha=0.8)
+        ax6.add_patch(rect)
+
+    # Ramp outline
+    ramp_outline = plt.Rectangle((ENTRY_FLAT, -ramp_width/2), arc_length, ramp_width,
+                                   facecolor='none', edgecolor='#404040', linewidth=2)
+    ax6.add_patch(ramp_outline)
+    ax6.text(ENTRY_FLAT + arc_length/2, 0, f'RAMP\n{arc_length:.1f}m\n↓ {VERTICAL_DROP}m drop',
+             ha='center', va='center', fontsize=11, fontweight='bold', color='white')
+
+    # Garage section (blue - 5 meters)
+    garage_rect = plt.Rectangle((ENTRY_FLAT + arc_length, -ramp_width/2), EXIT_FLAT, ramp_width,
+                                  facecolor='#4169E1', edgecolor='#1E3A8A', linewidth=2, alpha=0.8)
+    ax6.add_patch(garage_rect)
+    ax6.text(ENTRY_FLAT + arc_length + EXIT_FLAT/2, 0, f'GARAGE\n{EXIT_FLAT:.0f}m\n(Level -{VERTICAL_DROP}m)',
+             ha='center', va='center', fontsize=11, fontweight='bold', color='white')
+
+    # Draw car silhouettes along the path
+    car_positions = [2.5, ENTRY_FLAT + arc_length * 0.25, ENTRY_FLAT + arc_length * 0.5,
+                     ENTRY_FLAT + arc_length * 0.75, ENTRY_FLAT + arc_length + 2.5]
+    for i, car_pos in enumerate(car_positions):
+        alpha = 0.4 if i != 2 else 0.9
+        car_color = '#FF4444' if i == 2 else '#FF8888'
+        car_rect = plt.Rectangle((car_pos - CAR_LENGTH/2, -CAR_WIDTH/2), CAR_LENGTH, CAR_WIDTH,
+                                   facecolor=car_color, edgecolor='darkred', linewidth=1.5, alpha=alpha)
+        ax6.add_patch(car_rect)
+        # Front indicator
+        front_x = car_pos + CAR_LENGTH/2
+        ax6.fill([front_x, front_x - 0.3, front_x - 0.3], [0, 0.2, -0.2],
+                 color='darkred', alpha=alpha)
+
+    # Direction arrow
+    ax6.annotate('', xy=(total_length - 1, ramp_width/2 + 0.4),
+                 xytext=(1, ramp_width/2 + 0.4),
+                 arrowprops=dict(arrowstyle='->', color='black', lw=2))
+    ax6.text(total_length/2, ramp_width/2 + 0.6, 'DOWNHILL DIRECTION', ha='center', fontsize=10, fontweight='bold')
+
+    # Dimension annotations
+    ax6.annotate('', xy=(0, -ramp_width/2 - 0.5), xytext=(ENTRY_FLAT, -ramp_width/2 - 0.5),
+                 arrowprops=dict(arrowstyle='<->', color='gray', lw=1.5))
+    ax6.text(ENTRY_FLAT/2, -ramp_width/2 - 0.8, f'{ENTRY_FLAT:.0f}m', ha='center', fontsize=9, color='gray')
+
+    ax6.annotate('', xy=(ENTRY_FLAT, -ramp_width/2 - 0.5), xytext=(ENTRY_FLAT + arc_length, -ramp_width/2 - 0.5),
+                 arrowprops=dict(arrowstyle='<->', color='#404040', lw=1.5))
+    ax6.text(ENTRY_FLAT + arc_length/2, -ramp_width/2 - 0.8, f'{arc_length:.1f}m', ha='center', fontsize=9)
+
+    ax6.annotate('', xy=(ENTRY_FLAT + arc_length, -ramp_width/2 - 0.5), xytext=(total_length, -ramp_width/2 - 0.5),
+                 arrowprops=dict(arrowstyle='<->', color='blue', lw=1.5))
+    ax6.text(ENTRY_FLAT + arc_length + EXIT_FLAT/2, -ramp_width/2 - 0.8, f'{EXIT_FLAT:.0f}m', ha='center', fontsize=9, color='blue')
+
+    ax6.set_xlim(-1, total_length + 1)
+    ax6.set_ylim(-ramp_width/2 - 1.5, ramp_width/2 + 1.2)
+    ax6.set_xlabel('Distance (m)', fontsize=11)
+    ax6.set_ylabel('Width (m)', fontsize=11)
+    ax6.set_title(f'TOP VIEW (Plan) - Total Length: {total_length:.1f}m', fontsize=12, fontweight='bold')
+    ax6.set_aspect('equal')
+    ax6.grid(True, alpha=0.3)
 
     plt.suptitle(f'24° MAXIMUM SLOPE RAMP DESIGN\n'
                  f'Arc: {arc_length:.1f}m | Total: {total_length:.1f}m | Bidirectional Safe',
