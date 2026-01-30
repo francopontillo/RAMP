@@ -1,0 +1,84 @@
+======================================================================
+GARAGE RAMP CONSTRUCTION CHECKLIST
+======================================================================
+
+PROJECT SPECIFICATIONS:
+  Ramp Length: 12.0m horizontal
+  Vertical Drop: 2.8m
+  Ramp Width: 3.0m
+  Profile: Cubic spline (smooth curve)
+  Maximum Slope: 19.3° (at midpoint)
+
+PRE-CONSTRUCTION:
+  [ ] Obtain necessary permits
+  [ ] Mark all utility lines (call before you dig!)
+  [ ] Verify measurements on site
+  [ ] Order materials (see specifications)
+  [ ] Arrange concrete delivery timing
+  [ ] Set up site safety barriers
+
+SITE PREPARATION:
+  [ ] Clear area of debris and vegetation
+  [ ] Establish reference point at street level
+  [ ] Mark centerline with string line or laser
+  [ ] Set measurement stakes every 0.5m (25 stakes total)
+  [ ] Mark depth at each stake per measurement table
+  [ ] Excavate to required depth + 150mm for base
+
+BASE PREPARATION:
+  [ ] Install drainage channels on both sides
+  [ ] Place and compact 100mm gravel base
+  [ ] Verify base levels match profile
+  [ ] Ensure proper slope for water drainage
+
+FORMWORK:
+  [ ] Build side forms to 3m width
+  [ ] Set form top edges to match profile elevations
+  [ ] Option A: Use flexible material for smooth curve
+  [ ] Option B: Use stepped formwork every 0.5m
+  [ ] Brace formwork securely every 1m
+  [ ] Double-check all elevations
+  [ ] Ensure smooth transitions (no bumps!)
+
+REINFORCEMENT:
+  [ ] Cut and bend rebar as required
+  [ ] Install 12mm rebar grid at 300mm spacing
+  [ ] Maintain 50mm concrete cover
+  [ ] Tie all intersections securely
+  [ ] Use rebar chairs to maintain height
+  [ ] Final inspection before pour
+
+CONCRETE POUR:
+  [ ] Verify concrete mix design (min 32 MPa)
+  [ ] Have sufficient crew for continuous pour
+  [ ] Pour concrete in systematic sections
+  [ ] Vibrate thoroughly to eliminate voids
+  [ ] Screed surface to match profile curve
+  [ ] Float surface smooth
+  [ ] Apply broom finish for traction
+  [ ] Check edges and transitions
+
+CURING & FINISHING:
+  [ ] Cover with plastic sheeting
+  [ ] Keep moist for minimum 7 days
+  [ ] Remove formwork carefully (after 2-3 days)
+  [ ] Fill any small voids or gaps
+  [ ] Seal edges if required
+  [ ] Allow full cure (28 days) before heavy use
+
+FINAL CHECKS:
+  [ ] Verify profile matches design (use template)
+  [ ] Check drainage function
+  [ ] Test drive with actual vehicle (SLOW!)
+  [ ] Check for any scraping points
+  [ ] Verify entry and exit transitions are smooth
+  [ ] Clean up site
+  [ ] Document completion with photos
+
+SAFETY NOTES:
+  ⚠ Maximum slope of 19.3° - take care during construction
+  ⚠ Ensure adequate drainage to prevent ice formation
+  ⚠ Smooth curve is critical - no bumps or dips
+  ⚠ Consider professional consultation for this complex curve
+
+======================================================================

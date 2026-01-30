@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ramp Side Elevation - Interactive Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        .header {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 2px solid #4a90d9;
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .viewer-container {
+            background: #fff;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            overflow: hidden;
+            background: #fafafa;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+
+        #rampCanvas {
+            display: block;
+            width: 100%;
+            cursor: default;
+        }
+
+        .car-container {
+            position: absolute;
+            cursor: grab;
+            transform-origin: center center;
+            user-select: none;
+            transition: box-shadow 0.2s;
+        }
+
+        .car-container:hover {
+            box-shadow: 0 0 20px rgba(74, 144, 217, 0.5);
+        }
+
+        .car-container.dragging {
+            cursor: grabbing;
+            box-shadow: 0 0 30px rgba(74, 144, 217, 0.8);
+        }
+
+        .car-container img {
+            display: block;
+            pointer-events: none;
+        }
+
+        .rotation-handle {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: #4a90d9;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            /* Position will be set dynamically */
+        }
+
+        .rotation-handle:hover {
+            background: #3a7bc8;
+            transform: scale(1.1);
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .control-panel {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .control-panel h3 {
+            font-size: 1rem;
+            margin-bottom: 15px;
+            color: #4a90d9;
+            border-bottom: 1px solid rgba(74, 144, 217, 0.3);
+            padding-bottom: 8px;
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .control-row label {
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+
+        .control-row input[type="range"] {
+            width: 120px;
+            accent-color: #4a90d9;
+        }
+
+        .control-row input[type="number"] {
+            width: 80px;
+            padding: 5px 8px;
+            border: 1px solid #4a90d9;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 0.85rem;
+        }
+
+        .control-row span {
+            font-size: 0.85rem;
+            color: #4a90d9;
+            min-width: 50px;
+            text-align: right;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #4a90d9;
+            border: none;
+            border-radius: 5px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            background: #3a7bc8;
+            transform: translateY(-1px);
+        }
+
+        button.secondary {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #4a90d9;
+        }
+
+        button.secondary:hover {
+            background: rgba(74, 144, 217, 0.2);
+        }
+
+        .info-panel {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.85rem;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-row .label {
+            color: #888;
+        }
+
+        .info-row .value {
+            color: #4a90d9;
+            font-weight: 600;
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+
+        .legend-color {
+            width: 24px;
+            height: 4px;
+            border-radius: 2px;
+        }
+
+        .instructions {
+            background: rgba(74, 144, 217, 0.1);
+            border: 1px solid rgba(74, 144, 217, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .instructions h4 {
+            color: #4a90d9;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+
+        .instructions ul {
+            list-style: none;
+            font-size: 0.85rem;
+            color: #aaa;
+        }
+
+        .instructions li {
+            padding: 4px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .instructions li:before {
+            content: "▸";
+            position: absolute;
+            left: 0;
+            color: #4a90d9;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Ramp Side Elevation - Interactive Viewer</h1>
+        <p>3.5m Drop | Extended with 5m flat sections | Porsche 997.1 Turbo (2008)</p>
+    </div>
+
+    <div class="container">
+        <div class="viewer-container">
+            <div class="canvas-wrapper" id="canvasWrapper">
+                <canvas id="rampCanvas"></canvas>
+                <div class="car-container" id="carContainer">
+                    <div class="rotation-handle" id="rotationHandle">↻</div>
+                    <img id="carImage" src="porsche_997_turbo_final.png" alt="Porsche 997">
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="control-panel">
+                <h3>Car Position</h3>
+                <div class="control-row">
+                    <label>X Position (m):</label>
+                    <input type="number" id="carX" step="0.1" value="2.5">
+                    <span id="carXDisplay">2.5m</span>
+                </div>
+                <div class="control-row">
+                    <label>Y Position (m):</label>
+                    <input type="number" id="carY" step="0.01" value="0">
+                    <span id="carYDisplay">0.00m</span>
+                </div>
+                <div class="control-row">
+                    <label>Rotation (°):</label>
+                    <input type="range" id="carRotation" min="-45" max="45" value="0">
+                    <span id="carRotationDisplay">0°</span>
+                </div>
+                <div style="margin-top: 15px;">
+                    <button onclick="snapToGround()">Snap to Ground</button>
+                    <button onclick="resetCar()" class="secondary">Reset Position</button>
+                </div>
+            </div>
+
+            <div class="control-panel">
+                <h3>View Controls</h3>
+                <div class="control-row">
+                    <label>Zoom:</label>
+                    <input type="range" id="zoom" min="30" max="100" value="50">
+                    <span id="zoomDisplay">50 px/m</span>
+                </div>
+                <div class="control-row">
+                    <label>Pan X:</label>
+                    <input type="range" id="panX" min="-200" max="200" value="0">
+                    <span id="panXDisplay">0px</span>
+                </div>
+                <div style="margin-top: 15px;">
+                    <button onclick="fitToView()">Fit to View</button>
+                    <button onclick="resetView()" class="secondary">Reset View</button>
+                </div>
+            </div>
+
+            <div class="control-panel">
+                <h3>Ramp Specifications</h3>
+                <div class="info-panel">
+                    <div class="info-row">
+                        <span class="label">Total Length:</span>
+                        <span class="value">21.78m</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Entry Flat:</span>
+                        <span class="value">5.00m</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Ramp Arc:</span>
+                        <span class="value">11.78m</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Exit Flat:</span>
+                        <span class="value">5.00m</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Vertical Drop:</span>
+                        <span class="value">3.50m</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Max Slope:</span>
+                        <span class="value">24.0°</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-panel">
+                <h3>Car Specifications</h3>
+                <div class="info-panel">
+                    <div class="info-row">
+                        <span class="label">Model:</span>
+                        <span class="value">Porsche 911 (997.1)</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Year:</span>
+                        <span class="value">2008</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Length:</span>
+                        <span class="value">4461mm</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Wheelbase:</span>
+                        <span class="value">2350mm</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Ground Clearance:</span>
+                        <span class="value">106mm</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #28a745;"></div>
+                <span>Street Level (0m)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #007bff;"></div>
+                <span>Garage Level (-3.5m)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #d4a574;"></div>
+                <span>Ramp Surface</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #8B4513;"></div>
+                <span>Compacted Soil</span>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <h4>Instructions</h4>
+            <ul>
+                <li><strong>Drag the car</strong> - Click and drag the car image to move it</li>
+                <li><strong>Rotate the car</strong> - Drag the circular handle above the car, or use the rotation slider</li>
+                <li><strong>Snap to Ground</strong> - Automatically positions the car on the ramp surface at current X</li>
+                <li><strong>Zoom &amp; Pan</strong> - Use the sliders to adjust the view</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // ========== CONSTANTS ==========
+        const CAR_LENGTH = 4.461;  // meters
+        const CAR_HEIGHT = 1.3;    // approximate height in meters
+        const GROUND_CLEARANCE = 0.106;  // meters
+        const WHEELBASE = 2.350;  // meters
+
+        const ENTRY_FLAT = 5.0;   // meters
+        const RAMP_ARC = 11.78;   // meters
+        const EXIT_FLAT = 5.0;    // meters
+        const TOTAL_LENGTH = ENTRY_FLAT + RAMP_ARC + EXIT_FLAT;  // 21.78m
+        const VERTICAL_DROP = 3.5;  // meters
+
+        // ========== CAR IMAGE BOUNDS (from transparency analysis) ==========
+        // Full image: 1536 x 1024 pixels
+        // Car content bounds: left=84, top=283, right=1419, bottom=659
+        const IMG_FULL_WIDTH = 1536;
+        const IMG_FULL_HEIGHT = 1024;
+        const IMG_CAR_LEFT = 84;
+        const IMG_CAR_TOP = 283;
+        const IMG_CAR_RIGHT = 1419;
+        const IMG_CAR_BOTTOM = 659;
+        const IMG_CAR_WIDTH = IMG_CAR_RIGHT - IMG_CAR_LEFT + 1;  // 1336
+        const IMG_CAR_HEIGHT = IMG_CAR_BOTTOM - IMG_CAR_TOP + 1;  // 377
+
+        // Percentages for CSS positioning
+        const CAR_LEFT_PCT = IMG_CAR_LEFT / IMG_FULL_WIDTH;       // 0.0547
+        const CAR_TOP_PCT = IMG_CAR_TOP / IMG_FULL_HEIGHT;        // 0.2764
+        const CAR_WIDTH_PCT = IMG_CAR_WIDTH / IMG_FULL_WIDTH;     // 0.8698
+        const CAR_HEIGHT_PCT = IMG_CAR_HEIGHT / IMG_FULL_HEIGHT;  // 0.3682
+
+        // ========== STATE ==========
+        let pixelsPerMeter = 50;
+        let panX = 0;
+        let carX = 2.5;  // meters from left
+        let carY = 0;    // meters (elevation)
+        let carRotation = 0;  // degrees
+
+        let isDraggingCar = false;
+        let isRotatingCar = false;
+        let dragStartX, dragStartY;
+        let rotationStartAngle;
+
+        // ========== CANVAS SETUP ==========
+        const canvas = document.getElementById('rampCanvas');
+        const ctx = canvas.getContext('2d');
+        const wrapper = document.getElementById('canvasWrapper');
+        const carContainer = document.getElementById('carContainer');
+        const carImage = document.getElementById('carImage');
+        const rotationHandle = document.getElementById('rotationHandle');
+
+        function resizeCanvas() {
+            const wrapperWidth = wrapper.clientWidth;
+            const aspectRatio = 0.35;
+            canvas.width = wrapperWidth;
+            canvas.height = wrapperWidth * aspectRatio;
+            drawRamp();
+            updateCarPosition();
+        }
+
+        // ========== RAMP PROFILE CALCULATION ==========
+        function getRampElevation(x) {
+            // x is distance from left edge in meters
+
+            // Entry flat section (street level)
+            if (x < ENTRY_FLAT) {
+                return 0;
+            }
+
+            // Exit flat section (garage level)
+            if (x > ENTRY_FLAT + RAMP_ARC) {
+                return -VERTICAL_DROP;
+            }
+
+            // Ramp section - cubic profile
+            const s = x - ENTRY_FLAT;  // distance along ramp
+            const L = RAMP_ARC;
+            const H = VERTICAL_DROP;
+
+            // Cubic profile: z = a*s^3 + b*s^2
+            // With a = 2H/L^3 and b = -3H/L^2
+            const a = 2 * H / (L * L * L);
+            const b = -3 * H / (L * L);
+            const z = a * s * s * s + b * s * s;
+
+            return z;  // negative (going down)
+        }
+
+        function getRampSlope(x) {
+            // Returns slope in degrees at position x
+            if (x < ENTRY_FLAT || x > ENTRY_FLAT + RAMP_ARC) {
+                return 0;
+            }
+
+            const s = x - ENTRY_FLAT;
+            const L = RAMP_ARC;
+            const H = VERTICAL_DROP;
+
+            const a = 2 * H / (L * L * L);
+            const b = -3 * H / (L * L);
+
+            // Derivative: dz/ds = 3*a*s^2 + 2*b*s
+            const dz_ds = 3 * a * s * s + 2 * b * s;
+
+            // Convert to degrees (negative because going down)
+            return Math.atan(dz_ds) * 180 / Math.PI;
+        }
+
+        // ========== COORDINATE CONVERSION ==========
+        function metersToPixels(xMeters, yMeters) {
+            const marginLeft = 80;
+            const marginTop = 60;
+
+            const px = marginLeft + xMeters * pixelsPerMeter + panX;
+            const py = marginTop + (-yMeters + 1) * pixelsPerMeter;  // +1m headroom above street
+
+            return { x: px, y: py };
+        }
+
+        function pixelsToMeters(px, py) {
+            const marginLeft = 80;
+            const marginTop = 60;
+
+            const xMeters = (px - marginLeft - panX) / pixelsPerMeter;
+            const yMeters = -((py - marginTop) / pixelsPerMeter - 1);
+
+            return { x: xMeters, y: yMeters };
+        }
+
+        // ========== DRAWING ==========
+        function drawRamp() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const marginLeft = 80;
+            const marginTop = 60;
+            const marginBottom = 40;
+
+            // Background
+            ctx.fillStyle = '#fafafa';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+
+            // Vertical grid lines (every meter)
+            for (let x = 0; x <= TOTAL_LENGTH + 1; x++) {
+                const pos = metersToPixels(x, 0);
+                ctx.beginPath();
+                ctx.moveTo(pos.x, marginTop - 20);
+                ctx.lineTo(pos.x, canvas.height - marginBottom + 20);
+                ctx.stroke();
+            }
+
+            // Horizontal grid lines (every 0.5m)
+            for (let y = -4; y <= 1; y += 0.5) {
+                const pos = metersToPixels(0, y);
+                ctx.beginPath();
+                ctx.moveTo(marginLeft - 20, pos.y);
+                ctx.lineTo(canvas.width - 20, pos.y);
+                ctx.stroke();
+            }
+
+            // Draw soil fill below ramp
+            ctx.fillStyle = '#8B4513';
+            ctx.globalAlpha = 0.3;
+            ctx.beginPath();
+
+            let startPos = metersToPixels(0, getRampElevation(0));
+            ctx.moveTo(startPos.x, startPos.y);
+
+            for (let x = 0; x <= TOTAL_LENGTH; x += 0.1) {
+                const elev = getRampElevation(x);
+                const pos = metersToPixels(x, elev);
+                ctx.lineTo(pos.x, pos.y);
+            }
+
+            const endPos = metersToPixels(TOTAL_LENGTH, -VERTICAL_DROP);
+            const bottomRight = metersToPixels(TOTAL_LENGTH, -4.5);
+            const bottomLeft = metersToPixels(0, -4.5);
+
+            ctx.lineTo(bottomRight.x, bottomRight.y);
+            ctx.lineTo(bottomLeft.x, bottomLeft.y);
+            ctx.closePath();
+            ctx.fill();
+            ctx.globalAlpha = 1;
+
+            // Draw ramp surface fill
+            ctx.fillStyle = '#d4a574';
+            ctx.globalAlpha = 0.8;
+            ctx.beginPath();
+
+            startPos = metersToPixels(0, getRampElevation(0));
+            ctx.moveTo(startPos.x, startPos.y);
+
+            for (let x = 0; x <= TOTAL_LENGTH; x += 0.1) {
+                const elev = getRampElevation(x);
+                const pos = metersToPixels(x, elev);
+                ctx.lineTo(pos.x, pos.y);
+            }
+
+            // Surface thickness (0.15m)
+            for (let x = TOTAL_LENGTH; x >= 0; x -= 0.1) {
+                const elev = getRampElevation(x) - 0.15;
+                const pos = metersToPixels(x, elev);
+                ctx.lineTo(pos.x, pos.y);
+            }
+
+            ctx.closePath();
+            ctx.fill();
+            ctx.globalAlpha = 1;
+
+            // Draw ramp surface line
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+
+            startPos = metersToPixels(0, getRampElevation(0));
+            ctx.moveTo(startPos.x, startPos.y);
+
+            for (let x = 0; x <= TOTAL_LENGTH; x += 0.05) {
+                const elev = getRampElevation(x);
+                const pos = metersToPixels(x, elev);
+                ctx.lineTo(pos.x, pos.y);
+            }
+            ctx.stroke();
+
+            // Street level line (extended left)
+            ctx.strokeStyle = '#28a745';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            let streetStart = metersToPixels(-1, 0);
+            let streetEnd = metersToPixels(ENTRY_FLAT, 0);
+            ctx.moveTo(streetStart.x, streetStart.y);
+            ctx.lineTo(streetEnd.x, streetEnd.y);
+            ctx.stroke();
+
+            // Garage level line (extended right)
+            ctx.strokeStyle = '#007bff';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            let garageStart = metersToPixels(ENTRY_FLAT + RAMP_ARC, -VERTICAL_DROP);
+            let garageEnd = metersToPixels(TOTAL_LENGTH + 1, -VERTICAL_DROP);
+            ctx.moveTo(garageStart.x, garageStart.y);
+            ctx.lineTo(garageEnd.x, garageEnd.y);
+            ctx.stroke();
+
+            // Draw section markers
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = '#999';
+            ctx.lineWidth = 1;
+
+            // Entry transition
+            let transStart = metersToPixels(ENTRY_FLAT, 1);
+            let transEnd = metersToPixels(ENTRY_FLAT, -4.5);
+            ctx.beginPath();
+            ctx.moveTo(transStart.x, transStart.y);
+            ctx.lineTo(transEnd.x, transEnd.y);
+            ctx.stroke();
+
+            // Exit transition
+            transStart = metersToPixels(ENTRY_FLAT + RAMP_ARC, 1);
+            transEnd = metersToPixels(ENTRY_FLAT + RAMP_ARC, -4.5);
+            ctx.beginPath();
+            ctx.moveTo(transStart.x, transStart.y);
+            ctx.lineTo(transEnd.x, transEnd.y);
+            ctx.stroke();
+
+            ctx.setLineDash([]);
+
+            // Draw measurement markers every meter on ramp
+            ctx.fillStyle = '#c0392b';
+            ctx.strokeStyle = '#c0392b';
+            ctx.lineWidth = 1;
+
+            for (let x = 0; x <= TOTAL_LENGTH; x += 1) {
+                const elev = getRampElevation(x);
+                const pos = metersToPixels(x, elev);
+
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // X-axis labels
+            ctx.fillStyle = '#333';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+
+            for (let x = 0; x <= TOTAL_LENGTH; x += 2) {
+                const pos = metersToPixels(x, 0);
+                ctx.fillText(`${x}m`, pos.x, canvas.height - marginBottom + 35);
+            }
+
+            // Y-axis labels
+            ctx.textAlign = 'right';
+            for (let y = 1; y >= -4; y -= 1) {
+                const pos = metersToPixels(0, y);
+                ctx.fillText(`${y}m`, marginLeft - 10, pos.y + 4);
+            }
+
+            // Section labels
+            ctx.font = 'bold 14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#28a745';
+            let labelPos = metersToPixels(ENTRY_FLAT / 2, 0.7);
+            ctx.fillText('STREET (5m)', labelPos.x, labelPos.y);
+
+            ctx.fillStyle = '#333';
+            labelPos = metersToPixels(ENTRY_FLAT + RAMP_ARC / 2, 0.7);
+            ctx.fillText('RAMP (11.78m)', labelPos.x, labelPos.y);
+
+            ctx.fillStyle = '#007bff';
+            labelPos = metersToPixels(ENTRY_FLAT + RAMP_ARC + EXIT_FLAT / 2, -VERTICAL_DROP + 0.7);
+            ctx.fillText('GARAGE (5m)', labelPos.x, labelPos.y);
+
+            // Title
+            ctx.font = 'bold 16px sans-serif';
+            ctx.fillStyle = '#333';
+            ctx.textAlign = 'left';
+            ctx.fillText('SIDE ELEVATION - Extended Profile', marginLeft, 25);
+
+            ctx.font = '12px sans-serif';
+            ctx.fillStyle = '#666';
+            ctx.fillText('Total: 21.78m | Drop: 3.5m | Max slope: 24°', marginLeft, 45);
+        }
+
+        // ========== CAR POSITIONING ==========
+        function updateCarPosition() {
+            const pos = metersToPixels(carX, carY);
+
+            // Calculate image size so that the VISIBLE CAR CONTENT equals CAR_LENGTH meters
+            // The visible car is only CAR_WIDTH_PCT of the full image width
+            const carContentWidthPx = CAR_LENGTH * pixelsPerMeter;
+            const fullImageWidthPx = carContentWidthPx / CAR_WIDTH_PCT;
+            const fullImageHeightPx = fullImageWidthPx * (IMG_FULL_HEIGHT / IMG_FULL_WIDTH);
+
+            carImage.style.width = `${fullImageWidthPx}px`;
+            carImage.style.height = `${fullImageHeightPx}px`;
+
+            // Calculate the offset from the image edge to the car content
+            const leftOffsetPx = CAR_LEFT_PCT * fullImageWidthPx;
+            const topOffsetPx = CAR_TOP_PCT * fullImageHeightPx;
+            const carContentHeightPx = CAR_HEIGHT_PCT * fullImageHeightPx;
+
+            // Position: we want the CENTER of the visible car at carX,
+            // and the BOTTOM of the visible car at carY + GROUND_CLEARANCE
+            const carCenterOffsetPx = leftOffsetPx + carContentWidthPx / 2;
+            const carBottomOffsetPx = topOffsetPx + carContentHeightPx;
+
+            // Ground clearance in pixels
+            const groundClearancePx = GROUND_CLEARANCE * pixelsPerMeter;
+
+            // Position the container so car center is at pos.x and car bottom is at pos.y + clearance
+            carContainer.style.left = `${pos.x - carCenterOffsetPx}px`;
+            carContainer.style.top = `${pos.y - carBottomOffsetPx + groundClearancePx}px`;
+
+            // Set transform origin to the center of the visible car (for rotation)
+            const originX = carCenterOffsetPx;
+            const originY = topOffsetPx + carContentHeightPx / 2;
+            carContainer.style.transformOrigin = `${originX}px ${originY}px`;
+            carContainer.style.transform = `rotate(${-carRotation}deg)`;
+
+            // Position rotation handle above the center of visible car
+            rotationHandle.style.left = `${carCenterOffsetPx - 12}px`;  // 12 = half of handle width
+            rotationHandle.style.top = `${topOffsetPx - 35}px`;
+
+            // Update displays
+            document.getElementById('carXDisplay').textContent = `${carX.toFixed(1)}m`;
+            document.getElementById('carYDisplay').textContent = `${carY.toFixed(2)}m`;
+            document.getElementById('carRotationDisplay').textContent = `${carRotation.toFixed(1)}°`;
+            document.getElementById('carRotation').value = carRotation;
+        }
+
+        function snapToGround() {
+            carY = getRampElevation(carX);
+            carRotation = getRampSlope(carX);
+            updateCarPosition();
+            document.getElementById('carY').value = carY.toFixed(2);
+        }
+
+        function resetCar() {
+            carX = 2.5;
+            carY = 0;
+            carRotation = 0;
+            document.getElementById('carX').value = carX;
+            document.getElementById('carY').value = carY;
+            document.getElementById('carRotation').value = carRotation;
+            updateCarPosition();
+        }
+
+        function resetView() {
+            pixelsPerMeter = 50;
+            panX = 0;
+            document.getElementById('zoom').value = pixelsPerMeter;
+            document.getElementById('panX').value = panX;
+            document.getElementById('zoomDisplay').textContent = `${pixelsPerMeter} px/m`;
+            document.getElementById('panXDisplay').textContent = `${panX}px`;
+            drawRamp();
+            updateCarPosition();
+        }
+
+        function fitToView() {
+            const availableWidth = wrapper.clientWidth - 160;  // margins
+            pixelsPerMeter = Math.floor(availableWidth / (TOTAL_LENGTH + 2));
+            pixelsPerMeter = Math.max(30, Math.min(100, pixelsPerMeter));
+            panX = 0;
+            document.getElementById('zoom').value = pixelsPerMeter;
+            document.getElementById('panX').value = panX;
+            document.getElementById('zoomDisplay').textContent = `${pixelsPerMeter} px/m`;
+            document.getElementById('panXDisplay').textContent = `${panX}px`;
+            drawRamp();
+            updateCarPosition();
+        }
+
+        // ========== EVENT HANDLERS ==========
+        // Car dragging
+        carContainer.addEventListener('mousedown', (e) => {
+            if (e.target === rotationHandle) return;
+            isDraggingCar = true;
+            carContainer.classList.add('dragging');
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            e.preventDefault();
+        });
+
+        // Rotation handle
+        rotationHandle.addEventListener('mousedown', (e) => {
+            isRotatingCar = true;
+            const rect = carContainer.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            rotationStartAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * 180 / Math.PI;
+            e.preventDefault();
+            e.stopPropagation();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDraggingCar) {
+                const dx = e.clientX - dragStartX;
+                const dy = e.clientY - dragStartY;
+
+                carX += dx / pixelsPerMeter;
+                carY -= dy / pixelsPerMeter;
+
+                // Clamp to reasonable bounds
+                carX = Math.max(-1, Math.min(TOTAL_LENGTH + 1, carX));
+                carY = Math.max(-5, Math.min(2, carY));
+
+                document.getElementById('carX').value = carX.toFixed(1);
+                document.getElementById('carY').value = carY.toFixed(2);
+
+                dragStartX = e.clientX;
+                dragStartY = e.clientY;
+
+                updateCarPosition();
+            }
+
+            if (isRotatingCar) {
+                const rect = carContainer.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const currentAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * 180 / Math.PI;
+
+                carRotation += (currentAngle - rotationStartAngle);
+                carRotation = Math.max(-45, Math.min(45, carRotation));
+                rotationStartAngle = currentAngle;
+
+                updateCarPosition();
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDraggingCar = false;
+            isRotatingCar = false;
+            carContainer.classList.remove('dragging');
+        });
+
+        // Input controls
+        document.getElementById('carX').addEventListener('input', (e) => {
+            carX = parseFloat(e.target.value) || 0;
+            updateCarPosition();
+        });
+
+        document.getElementById('carY').addEventListener('input', (e) => {
+            carY = parseFloat(e.target.value) || 0;
+            updateCarPosition();
+        });
+
+        document.getElementById('carRotation').addEventListener('input', (e) => {
+            carRotation = parseFloat(e.target.value) || 0;
+            updateCarPosition();
+        });
+
+        document.getElementById('zoom').addEventListener('input', (e) => {
+            pixelsPerMeter = parseInt(e.target.value);
+            document.getElementById('zoomDisplay').textContent = `${pixelsPerMeter} px/m`;
+            drawRamp();
+            updateCarPosition();
+        });
+
+        document.getElementById('panX').addEventListener('input', (e) => {
+            panX = parseInt(e.target.value);
+            document.getElementById('panXDisplay').textContent = `${panX}px`;
+            drawRamp();
+            updateCarPosition();
+        });
+
+        // Touch support for mobile
+        carContainer.addEventListener('touchstart', (e) => {
+            if (e.target === rotationHandle) return;
+            isDraggingCar = true;
+            carContainer.classList.add('dragging');
+            dragStartX = e.touches[0].clientX;
+            dragStartY = e.touches[0].clientY;
+            e.preventDefault();
+        });
+
+        rotationHandle.addEventListener('touchstart', (e) => {
+            isRotatingCar = true;
+            const rect = carContainer.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            rotationStartAngle = Math.atan2(e.touches[0].clientY - centerY, e.touches[0].clientX - centerX) * 180 / Math.PI;
+            e.preventDefault();
+            e.stopPropagation();
+        });
+
+        document.addEventListener('touchmove', (e) => {
+            if (isDraggingCar || isRotatingCar) {
+                const touch = e.touches[0];
+
+                if (isDraggingCar) {
+                    const dx = touch.clientX - dragStartX;
+                    const dy = touch.clientY - dragStartY;
+
+                    carX += dx / pixelsPerMeter;
+                    carY -= dy / pixelsPerMeter;
+
+                    carX = Math.max(-1, Math.min(TOTAL_LENGTH + 1, carX));
+                    carY = Math.max(-5, Math.min(2, carY));
+
+                    document.getElementById('carX').value = carX.toFixed(1);
+                    document.getElementById('carY').value = carY.toFixed(2);
+
+                    dragStartX = touch.clientX;
+                    dragStartY = touch.clientY;
+                }
+
+                if (isRotatingCar) {
+                    const rect = carContainer.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    const currentAngle = Math.atan2(touch.clientY - centerY, touch.clientX - centerX) * 180 / Math.PI;
+
+                    carRotation += (currentAngle - rotationStartAngle);
+                    carRotation = Math.max(-45, Math.min(45, carRotation));
+                    rotationStartAngle = currentAngle;
+                }
+
+                updateCarPosition();
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('touchend', () => {
+            isDraggingCar = false;
+            isRotatingCar = false;
+            carContainer.classList.remove('dragging');
+        });
+
+        // Initialize
+        window.addEventListener('resize', resizeCanvas);
+        carImage.addEventListener('load', () => {
+            resizeCanvas();
+            snapToGround();
+        });
+
+        // Initial setup
+        resizeCanvas();
+    </script>
+</body>
+</html>
